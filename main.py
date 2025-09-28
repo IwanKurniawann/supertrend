@@ -7,6 +7,7 @@ Mengintegrasikan analisis teknikal dengan validasi AI dari Gemini.
 import asyncio
 import logging
 import sys
+import os
 from pathlib import Path
 
 # Menambahkan direktori saat ini ke path agar impor berfungsi dengan benar
@@ -34,13 +35,17 @@ async def main():
     """Titik masuk utama aplikasi."""
     trading_use_case = None
     try:
-        # 1. Muat Konfigurasi
+        # 1. Konfigurasi Logging terlebih dahulu
+        # Ini penting agar kelas Settings bisa log warning jika ada config yang hilang
+        log_level = os.getenv("LOG_LEVEL", "INFO")
+        setup_logging(log_level)
+        
+        # 2. Muat Konfigurasi
         settings = Settings()
-        setup_logging(settings.LOG_LEVEL)
         logging.info("🚀 Bot Trading Cerdas Dimulai...")
         logging.info(f"Pivot Period: {settings.PIVOT_PERIOD}, Confidence Threshold: {settings.AI_CONFIDENCE_THRESHOLD}")
 
-        # 2. Inisialisasi Layanan (Dependency Injection)
+        # 3. Inisialisasi Layanan (Dependency Injection)
         exchange = KuCoinExchange(
             http_proxy=settings.HTTP_PROXY,
             https_proxy=settings.HTTPS_PROXY
@@ -54,11 +59,12 @@ async def main():
             atr_factor=settings.ATR_FACTOR,
             atr_period=settings.ATR_PERIOD
         )
+        # FIX: Pass the entire 'settings' object instead of just 'api_key'
         ai_service = GeminiService(
-            api_key=settings.GEMINI_API_KEY
+            settings=settings
         )
 
-        # 3. Inisialisasi Use Case Utama
+        # 4. Inisialisasi Use Case Utama
         trading_use_case = TradingUseCase(
             exchange=exchange,
             telegram_service=telegram_service,
@@ -67,7 +73,7 @@ async def main():
             settings=settings
         )
 
-        # 4. Jalankan Alur Kerja
+        # 5. Jalankan Alur Kerja
         await trading_use_case.initialize_services()
         await trading_use_case.analyze_and_notify()
 
@@ -80,17 +86,19 @@ async def main():
         logging.error(f"❌ Terjadi error tak terduga di level aplikasi: {e}", exc_info=True)
         # Kirim notifikasi error darurat jika mungkin
         try:
-            emergency_telegram = TelegramService(
-                token=Settings().TELEGRAM_BOT_TOKEN, # Muat ulang settings untuk kasus darurat
-                chat_id=Settings().TELEGRAM_CHAT_ID
-            )
-            await emergency_telegram.send_error_notification(f"🚨 BOT CRITICAL ERROR: {str(e)}")
+            # Periksa apakah notifikasi diaktifkan sebelum mengirim
+            if Settings().ENABLE_NOTIFICATIONS:
+                emergency_telegram = TelegramService(
+                    token=Settings().TELEGRAM_BOT_TOKEN, # Muat ulang settings untuk kasus darurat
+                    chat_id=Settings().TELEGRAM_CHAT_ID
+                )
+                await emergency_telegram.send_error_notification(f"🚨 BOT CRITICAL ERROR: {str(e)}")
         except Exception as telegram_err:
             logging.error(f"Gagal mengirim notifikasi error darurat: {telegram_err}")
         sys.exit(1)
 
     finally:
-        # 5. Pastikan layanan ditutup dengan benar
+        # 6. Pastikan layanan ditutup dengan benar
         if trading_use_case:
             await trading_use_case.shutdown_services()
         logging.info("🔄 Bot Trading Cerdas Selesai.")

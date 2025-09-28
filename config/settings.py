@@ -4,24 +4,29 @@ Menggunakan environment variables dengan fallback defaults
 """
 
 import os
+import logging
 from typing import List
+from dotenv import load_dotenv
+
+# Muat variabel dari file .env jika ada (berguna untuk pengembangan lokal)
+# Di GitHub Actions, variabel akan diambil dari Secrets.
+load_dotenv()
 
 class Settings:
     """Manajemen konfigurasi terpusat"""
 
-    # Konfigurasi Gemini AI
+    # --- Pengambilan Variabel Lingkungan ---
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_ANALYSIS_ENABLED: bool = os.getenv("GEMINI_ANALYSIS_ENABLED", "True").lower() == "true"
-
-    # Konfigurasi Telegram
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
-
-    # Konfigurasi Proxy (Opsional, untuk lingkungan seperti GitHub Actions)
     HTTP_PROXY: str = os.getenv("HTTP_PROXY", "")
     HTTPS_PROXY: str = os.getenv("HTTPS_PROXY", "")
 
-    # Parameter Trading
+    # --- Flag Fitur & Parameter Trading ---
+    # Flag ini akan di-override di __init__ jika key yang relevan tidak ditemukan
+    GEMINI_ANALYSIS_ENABLED: bool = os.getenv("GEMINI_ANALYSIS_ENABLED", "True").lower() == "true"
+    ENABLE_NOTIFICATIONS: bool = os.getenv("ENABLE_NOTIFICATIONS", "True").lower() == "true"
+
     TRADING_PAIRS: List[str] = os.getenv(
         "TRADING_PAIRS",
         "BTC/USDT,ETH/USDT,SOL/USDT,LINK/USDT,AVAX/USDT"
@@ -29,34 +34,39 @@ class Settings:
 
     PRIMARY_TIMEFRAME: str = os.getenv("PRIMARY_TIMEFRAME", "1h")
     HIGHER_TIMEFRAME: str = os.getenv("HIGHER_TIMEFRAME", "4h")
-
-    # Pivot Period disesuaikan untuk swing yang lebih signifikan
     PIVOT_PERIOD: int = int(os.getenv("PIVOT_PERIOD", "5"))
     ATR_FACTOR: float = float(os.getenv("ATR_FACTOR", "3.0"))
     ATR_PERIOD: int = int(os.getenv("ATR_PERIOD", "10"))
-
     OHLCV_LIMIT: int = int(os.getenv("OHLCV_LIMIT", "200"))
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    ENABLE_NOTIFICATIONS: bool = os.getenv("ENABLE_NOTIFICATIONS", "True").lower() == "true"
+    AI_CONFIDENCE_THRESHOLD: int = int(os.getenv("AI_CONFIDENCE_THRESHOLD", "6"))
+
 
     def __init__(self):
-        """Validasi pengaturan yang diperlukan saat inisialisasi"""
-        self._validate_required_settings()
+        """Validasi pengaturan dan menonaktifkan fitur secara dinamis jika kunci API hilang."""
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self._validate_and_configure_features()
 
-    def _validate_required_settings(self) -> None:
-        """Validasi bahwa variabel lingkungan yang diperlukan sudah diatur"""
-        required_settings = [
-            ("TELEGRAM_BOT_TOKEN", self.TELEGRAM_BOT_TOKEN),
-            ("TELEGRAM_CHAT_ID", self.TELEGRAM_CHAT_ID),
-        ]
-
-        if self.GEMINI_ANALYSIS_ENABLED:
-            required_settings.append(("GEMINI_API_KEY", self.GEMINI_API_KEY))
-
-        missing_settings = [name for name, value in required_settings if not value or not value.strip()]
-
-        if missing_settings:
-            raise ValueError(
-                f"Missing required environment variables: {', '.join(missing_settings)}"
+    def _validate_and_configure_features(self) -> None:
+        """
+        Memeriksa kunci API yang diperlukan.
+        Jika kunci hilang, log peringatan dan nonaktifkan fitur terkait.
+        """
+        # Validasi Analisis Gemini
+        if self.GEMINI_ANALYSIS_ENABLED and not self.GEMINI_API_KEY:
+            self.logger.warning(
+                "GEMINI_API_KEY tidak ditemukan. Menonaktifkan analisis AI. "
+                "Untuk mengaktifkan, atur GEMINI_API_KEY di environment variables atau GitHub Secrets."
             )
+            self.GEMINI_ANALYSIS_ENABLED = False
 
+        # Validasi Notifikasi Telegram
+        if self.ENABLE_NOTIFICATIONS:
+            if not self.TELEGRAM_BOT_TOKEN or not self.TELEGRAM_CHAT_ID:
+                self.logger.warning(
+                    "TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID tidak ditemukan. Menonaktifkan notifikasi. "
+                    "Untuk mengaktifkan, atur kedua variabel di environment variables atau GitHub Secrets."
+                )
+                self.ENABLE_NOTIFICATIONS = False
+
+        self.logger.info(f"Status Fitur: Analisis AI -> {self.GEMINI_ANALYSIS_ENABLED}, Notifikasi -> {self.ENABLE_NOTIFICATIONS}")

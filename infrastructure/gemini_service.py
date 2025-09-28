@@ -8,7 +8,7 @@ import re
 from typing import Dict, Any
 import google.generativeai as genai
 
-from domain.entities import IndicatorData, TrendDirection
+from domain.entities import IndicatorData, TrendDirection, AnalysisResult
 from domain.services import GenerativeAIService
 from config.settings import Settings
 
@@ -54,8 +54,8 @@ class GeminiService(GenerativeAIService):
         - RSI (14) pada 1 Jam: {indicator_data.rsi:.2f}
         - MACD Line (1 Jam): {indicator_data.macd_line:,.5f}
         - MACD Signal (1 Jam): {indicator_data.macd_signal:,.5f}
-        - Level Support Kunci (dari Swing Low): ${indicator_data.support_level:,.4f}
-        - Level Resistance Kunci (dari Swing High): ${indicator_data.resistance_level:,.4f}
+        - Level Support Kunci (dari Swing Low): ${indicator_data.support_level or 0:,.4f}
+        - Level Resistance Kunci (dari Swing High): ${indicator_data.resistance_level or 0:,.4f}
 
         **TUGAS ANDA:**
         1.  **Analisis Konfluens Bullish:** Sebutkan semua faktor dari data di atas yang mendukung potensi pergerakan harga NAIK (BUY).
@@ -82,24 +82,23 @@ class GeminiService(GenerativeAIService):
         try:
             self.logger.debug(f"Mengirim prompt ke Gemini untuk {symbol}...")
             response = await self.model.generate_content_async(prompt)
-            
+
             # Ekstrak data menggunakan regex untuk ketahanan
-            insight_match = re.search(r"Insight:\s*(.*)", response.text, re.IGNORECASE)
+            insight_match = re.search(r"Insight:\s*(.*)", response.text, re.IGNORECASE | re.DOTALL)
             conclusion_match = re.search(r"Conclusion:\s*(BUY|SELL|NEUTRAL)", response.text, re.IGNORECASE)
             confidence_match = re.search(r"Confidence:\s*(\d+)", response.text, re.IGNORECASE)
 
             if not all([insight_match, conclusion_match, confidence_match]):
                 self.logger.warning(f"Gagal mem-parsing respons Gemini untuk {symbol}. Respons: {response.text}")
-                return {"insight": "Gagal mem-parsing respons AI.", "conclusion": "NEUTRAL", "confidence": 0}
+                return {"summary": "Gagal mem-parsing respons AI.", "conclusion": "NEUTRAL", "confidence_score": 0}
 
             insight = insight_match.group(1).strip()
             conclusion = conclusion_match.group(1).upper()
             confidence = int(confidence_match.group(1))
 
             self.logger.info(f"Analisis AI untuk {symbol} diterima: {conclusion} (Confidence: {confidence})")
-            return {"insight": insight, "conclusion": conclusion, "confidence": confidence}
+            return {"summary": insight, "conclusion": conclusion, "confidence_score": confidence}
 
         except Exception as e:
             self.logger.error(f"Terjadi error saat berkomunikasi dengan Gemini API: {e}", exc_info=True)
-            return {"insight": "Error saat menghubungi layanan AI.", "conclusion": "NEUTRAL", "confidence": 0}
-
+            return {"summary": "Error saat menghubungi layanan AI.", "conclusion": "NEUTRAL", "confidence_score": 0}

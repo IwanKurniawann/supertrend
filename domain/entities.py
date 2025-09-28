@@ -65,8 +65,9 @@ class TradingSignal:
     # Konteks Analisis Tambahan
     support_level: Optional[float] = None
     resistance_level: Optional[float] = None
+    higher_tf_trend: Optional[TrendDirection] = None  # Added this field
     # Insight dari AI (baru)
-    ai_insight: Optional[str] = None
+    ai_insight: Optional[Dict[str, Any]] = None
     ai_confidence_score: Optional[int] = None
     indicator_values: Dict[str, Any] = field(default_factory=dict)
 
@@ -79,6 +80,8 @@ class AnalysisResult:
     market_data: MarketData
     indicator_data: IndicatorData
     signal: Optional[TradingSignal] = None
+    higher_tf_trend: Optional[TrendDirection] = None  # Added this field
+    analysis_duration_ms: Optional[float] = None # Added this field
 
     def has_signal(self) -> bool:
         """Memeriksa apakah analisis menghasilkan sinyal trading (bukan HOLD)"""
@@ -97,6 +100,11 @@ class NotificationMessage:
     message_type: str = "info"  # info, warning, error, success
     parse_mode: str = "HTML"
     disable_web_page_preview: bool = True
+    
+    def validate(self):
+        """Basic validation for the notification message."""
+        if not self.recipient or not self.subject or not self.content:
+            raise ValueError("Recipient, subject, and content cannot be empty.")
 
     def format_telegram_message(self) -> str:
         """Memformat pesan untuk Telegram dengan format HTML"""
@@ -110,4 +118,3 @@ class NotificationMessage:
         formatted_message = f"{emoji} <b>{self.subject}</b>\n\n{self.content}"
         formatted_message += f"\n\n<pre>⏰ {time_str}</pre>"
         return formatted_message
-

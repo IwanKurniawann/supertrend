@@ -1,0 +1,54 @@
+name: 🤖 Trading Bot - Pivot Point SuperTrend with Gemini AI
+
+on:
+  schedule:
+    # Jalankan setiap 4 jam, pada jam ke-0, 4, 8, 12, 16, 20
+    - cron: '0 0,4,8,12,16,20 * * *'
+  workflow_dispatch:
+
+jobs:
+  trading-analysis:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: 📦 Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: 🧪 Install and Verify Dependencies
+      run: |
+          pip install -r requirements.txt
+          python -c "import google.generativeai as genai; print('✅ google-generativeai installed')"
+
+    - name: 🚀 Run trading analysis
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        HTTP_PROXY: ${{ secrets.HTTP_PROXY }}
+        HTTPS_PROXY: ${{ secrets.HTTPS_PROXY }}
+        # Mengatur PIVOT_PERIOD yang lebih besar untuk swing yang lebih signifikan
+        PIVOT_PERIOD: "5"
+        GEMINI_ANALYSIS_ENABLED: "True"
+      run: |
+        python main.py
+
+    - name: 📋 Upload logs (if failed)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: trading-bot-logs
+        path: trading_bot.log
+        retention-days: 7
+

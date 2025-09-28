@@ -1,0 +1,22 @@
+# Core dependencies
+ccxt>=4.1.0
+pandas>=2.0.0
+pandas-ta>=0.4.71b0
+python-telegram-bot>=20.7
+python-dotenv>=1.0.0
+numpy>=1.24.0
+
+# Ditambahkan untuk Analisis AI
+google-generativeai>=0.5.4
+
+# Additional utilities
+aiohttp>=3.8.0
+requests>=2.31.0
+python-dateutil>=2.8.0
+
+# Development and testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+

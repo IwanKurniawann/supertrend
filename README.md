@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 Dokumentasi Proyek: Bot Analisis Trading Cerdas dengan Validasi AI
 

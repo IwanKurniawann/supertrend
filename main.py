@@ -54,14 +54,14 @@ async def main():
             token=settings.TELEGRAM_BOT_TOKEN,
             chat_id=settings.TELEGRAM_CHAT_ID
         )
+        # FIX: Pass the entire 'settings' object instead of just 'api_key'
+        ai_service = GeminiService(
+            settings=settings
+        )
         technical_analysis = TechnicalAnalysisService(
             pivot_period=settings.PIVOT_PERIOD,
             atr_factor=settings.ATR_FACTOR,
             atr_period=settings.ATR_PERIOD
-        )
-        # FIX: Pass the entire 'settings' object instead of just 'api_key'
-        ai_service = GeminiService(
-            settings=settings
         )
 
         # 4. Inisialisasi Use Case Utama

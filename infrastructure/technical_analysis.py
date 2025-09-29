@@ -25,9 +25,9 @@ class TechnicalAnalysisService(TradingAnalysisService):
 
     def __init__(
         self,
-        pivot_period: int = 2,
+        pivot_period: int = 6,
         atr_factor: float = 3.0,
-        atr_period: int = 10,
+        atr_period: int = 1,
     ):
         self.pivot_period = pivot_period
         self.atr_factor = atr_factor
@@ -125,7 +125,7 @@ class TechnicalAnalysisService(TradingAnalysisService):
             return None
 
         # Kalkulasi Manajemen Risiko
-        risk_reward_ratio = 1.5
+        risk_reward_ratio = 2.0
         stop_loss = current_data["supertrend"]
         risk = abs(current_price - stop_loss)
         

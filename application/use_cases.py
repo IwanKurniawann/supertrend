@@ -58,7 +58,7 @@ class TradingUseCase:
             return False
 
         ai_conclusion = ai_insight.get('conclusion', '').upper()
-        ai_confidence = ai_insight.get('confidence_score', 0)
+        ai_confidence = ai_insight.get('confidence', 0)
         
         required_confidence = self.settings.AI_CONFIDENCE_THRESHOLD
 
@@ -83,25 +83,42 @@ class TradingUseCase:
         
         # 1. Analisis Teknikal Awal
         analysis_result = await self._run_technical_analysis(pair)
-        if not analysis_result or not analysis_result.signal:
+        if not analysis_result:
+            self.logger.warning(f"Analisis teknikal untuk {pair} tidak menghasilkan data.")
+            return
+
+        if not analysis_result.has_signal():
             self.logger.info(f"➡️ {pair}: Tidak ada sinyal teknikal awal (HOLD).")
             return
 
-        # 2. Dapatkan Insight dari AI
+        # 2. Dapatkan Insight dari AI (jika diaktifkan)
+        if not self.settings.GEMINI_ANALYSIS_ENABLED:
+            self.logger.info(f"Analisis AI dinonaktifkan. Sinyal untuk {pair} tidak divalidasi.")
+            return
+
         self.logger.info(f"🧠 Meminta validasi AI untuk sinyal {analysis_result.signal.signal_type.value} pada {pair}...")
-        ai_insight = await self.ai_service.get_confluence_insight(analysis_result)
+        
+        # FIX: Pass individual arguments instead of the whole analysis_result object
+        ai_insight = await self.ai_service.get_confluence_insight(
+            symbol=analysis_result.symbol,
+            current_price=analysis_result.market_data.close,
+            indicator_data=analysis_result.indicator_data,
+            higher_tf_trend=analysis_result.higher_tf_trend
+        )
         
         # 3. Validasi Sinyal dengan AI
         if self._is_signal_ai_validated(analysis_result.signal, ai_insight):
             # Perkaya sinyal dengan insight AI sebelum mengirim notifikasi
             analysis_result.signal.ai_insight = ai_insight
-            analysis_result.signal.higher_tf_trend = analysis_result.higher_tf_trend
+            analysis_result.signal.ai_confidence_score = ai_insight.get('confidence', 0)
             
             self.logger.info(
                 f"🚨 SINYAL TERVALIDASI AI: {analysis_result.signal.signal_type.value} "
                 f"untuk {pair} @ {analysis_result.signal.price:.4f}"
             )
-            await self.telegram_service.send_signal_notification(analysis_result.signal)
+            
+            if self.settings.ENABLE_NOTIFICATIONS:
+                await self.telegram_service.send_signal_notification(analysis_result.signal)
 
     async def _run_technical_analysis(self, symbol: str) -> Optional[AnalysisResult]:
         """Menjalankan analisis teknikal untuk satu pasangan."""
@@ -120,9 +137,11 @@ class TradingUseCase:
             primary_market_data, higher_market_data = await asyncio.gather(primary_data_task, higher_data_task)
 
             if not primary_market_data or len(primary_market_data) < 50:
-                raise ValueError(f"Data timeframe utama untuk {symbol} tidak cukup.")
+                self.logger.warning(f"Data timeframe utama untuk {symbol} tidak cukup.")
+                return None
             if not higher_market_data or len(higher_market_data) < 20:
-                raise ValueError(f"Data timeframe tinggi untuk {symbol} tidak cukup.")
+                self.logger.warning(f"Data timeframe tinggi untuk {symbol} tidak cukup.")
+                return None
 
             return await self.technical_analysis.analyze_market(
                 symbol=symbol,
@@ -130,8 +149,8 @@ class TradingUseCase:
                 higher_market_data=higher_market_data
             )
         except Exception as e:
-            self.logger.error(f"Gagal menjalankan analisis teknikal untuk {symbol}: {e}")
-            raise # Lemparkan error agar ditangkap oleh handler utama
+            self.logger.error(f"Gagal menjalankan analisis teknikal untuk {symbol}: {e}", exc_info=True)
+            return None # Return None instead of raising to allow other pairs to process
 
     async def analyze_and_notify(self) -> None:
         """
@@ -139,6 +158,11 @@ class TradingUseCase:
         """
         self.logger.info("🔍 Memulai siklus analisis trading...")
         
+        # Tambahkan ETC/USDT ke daftar trading jika belum ada
+        if "ETC/USDT" not in self.settings.TRADING_PAIRS:
+            self.settings.TRADING_PAIRS.append("ETC/USDT")
+            self.logger.info("Menambahkan ETC/USDT ke daftar analisis.")
+
         tasks = []
         for pair in self.settings.TRADING_PAIRS:
             tasks.append(self._analyze_and_notify_single_pair(pair.strip()))
@@ -150,7 +174,8 @@ class TradingUseCase:
             if isinstance(result, Exception):
                 pair = self.settings.TRADING_PAIRS[i].strip()
                 self.logger.error(f"Error saat memproses {pair}: {result}", exc_info=False)
-                await self.telegram_service.send_error_notification(f"Gagal memproses {pair}: {result}")
+                if self.settings.ENABLE_NOTIFICATIONS:
+                    await self.telegram_service.send_error_notification(f"Gagal memproses {pair}: {result}")
         
         self.logger.info("✅ Siklus analisis trading selesai.")
 

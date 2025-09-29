@@ -20,8 +20,8 @@ class GeminiService(GenerativeAIService):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.settings = settings
         self._configure_api()
-        # FIX: Changed model to 'gemini-pro' for better compatibility
-        self.model = genai.GenerativeModel('gemini-pro')
+        # SOLUSI: Mengubah nama model ke versi yang lebih stabil dan umum digunakan.
+        self.model = genai.GenerativeModel('gemini-1.0-pro')
 
     def _configure_api(self):
         """Mengonfigurasi API key Gemini dari settings."""
@@ -45,7 +45,6 @@ class GeminiService(GenerativeAIService):
     ) -> str:
         """Membangun prompt yang detail dan terstruktur untuk analisis AI."""
 
-        # FIX: Handle potential None values for S/R levels to prevent format errors
         support_level_str = f"${indicator_data.support_level:,.4f}" if indicator_data.support_level is not None else "N/A"
         resistance_level_str = f"${indicator_data.resistance_level:,.4f}" if indicator_data.resistance_level is not None else "N/A"
 
@@ -88,7 +87,6 @@ class GeminiService(GenerativeAIService):
             self.logger.debug(f"Mengirim prompt ke Gemini untuk {symbol}...")
             response = await self.model.generate_content_async(prompt)
             
-            # Ekstrak data menggunakan regex untuk ketahanan
             insight_match = re.search(r"Insight:\s*(.*)", response.text, re.IGNORECASE)
             conclusion_match = re.search(r"Conclusion:\s*(BUY|SELL|NEUTRAL)", response.text, re.IGNORECASE)
             confidence_match = re.search(r"Confidence:\s*(\d+)", response.text, re.IGNORECASE)

@@ -29,17 +29,22 @@ class TelegramService(NotificationService):
 
     def _initialize_bot(self) -> None:
         """Inisialisasi instance Telegram bot."""
+        if not self.token or not self.chat_id:
+            self.logger.warning("Token atau Chat ID Telegram tidak ada. Layanan notifikasi dinonaktifkan.")
+            self.bot = None
+            return
         try:
             self.bot = Bot(token=self.token)
             self.logger.info("✅ Bot Telegram berhasil diinisialisasi.")
         except Exception as e:
             self.logger.error(f"❌ Gagal menginisialisasi bot Telegram: {e}")
+            self.bot = None
             raise
 
     async def test_connection(self) -> bool:
         """Tes koneksi bot Telegram."""
+        if not self.bot: return False
         try:
-            if not self.bot: self._initialize_bot()
             bot_info = await self.bot.get_me()
             self.logger.debug(f"Info Bot: @{bot_info.username}")
             return True
@@ -49,6 +54,7 @@ class TelegramService(NotificationService):
 
     async def send_signal_notification(self, signal: TradingSignal) -> bool:
         """Mengirim notifikasi sinyal trading yang telah diformat."""
+        if not self.bot: return False
         try:
             message_content = self._format_signal_message(signal)
             subject = f"AI VALIDATED SIGNAL | {signal.symbol}"
@@ -62,13 +68,13 @@ class TelegramService(NotificationService):
             )
             return await self.send_custom_message(message)
         except Exception as e:
-            self.logger.error(f"Gagal mengirim notifikasi sinyal: {e}")
+            self.logger.error(f"Gagal mengirim notifikasi sinyal: {e}", exc_info=True)
             return False
 
     async def send_custom_message(self, message: NotificationMessage) -> bool:
         """Mengirim pesan kustom yang sudah diformat."""
+        if not self.bot: return False
         try:
-            if not self.bot: self._initialize_bot()
             message.validate()
             formatted_text = message.format_telegram_message()
 
@@ -84,13 +90,14 @@ class TelegramService(NotificationService):
             self.logger.error(f"Telegram API error: {e}")
             return False
         except Exception as e:
-            self.logger.error(f"Gagal mengirim pesan kustom: {e}")
+            self.logger.error(f"Gagal mengirim pesan kustom: {e}", exc_info=True)
             return False
 
     async def send_error_notification(
         self, error_message: str, context: Optional[Dict[str, Any]] = None
     ) -> bool:
         """Mengirim notifikasi error."""
+        if not self.bot: return False
         try:
             content = f"🚨 <b>Error Terjadi</b>\n\n<code>{error_message}</code>"
             if context:
@@ -113,24 +120,22 @@ class TelegramService(NotificationService):
         signal_icon = "🚀" if signal.signal_type == SignalType.BUY else "🔴"
         trend_icon = "📈" if signal.trend_direction == TrendDirection.BULLISH else "📉"
         
-        # --- Header ---
         message = f"<b>{signal.symbol} | {signal.timeframe} | {signal.signal_type.value} SIGNAL</b> {signal_icon}\n\n"
         
-        # --- Gemini AI Confluence ---
         if signal.ai_insight:
             message += "<b>🤖 Gemini AI Confluence:</b>\n"
-            message += f"<i>{signal.ai_insight.get('summary', 'N/A')}</i>\n"
-            message += f"Confidence Score: <b>{signal.ai_insight.get('confidence_score', 'N/A')}/10</b>\n\n"
+            message += f"<i>{signal.ai_insight.get('insight', 'N/A')}</i>\n"
+            message += f"Confidence: <b>{signal.ai_insight.get('confidence', 'N/A')}/10</b>\n\n"
 
-        # --- Manajemen Risiko ---
         message += "<b>Manajemen Risiko:</b>\n"
         message += f" Zona Entri: <code>${signal.entry_price:,.4f}</code>\n"
         message += f" 🎯 Target Profit: <code>${signal.take_profit:,.4f}</code>\n"
         message += f" 🛡️ Stop Loss: <code>${signal.stop_loss:,.4f}</code>\n\n"
         
-        # --- Detail Analisis Teknikal ---
         message += "<b>Detail Analisis Teknikal:</b>\n"
-        message += f" {trend_icon} Tren (1h/4h): <b>{signal.trend_direction.name} / {signal.higher_tf_trend.name}</b>\n"
+        # SOLUSI: Menambahkan pemeriksaan keamanan untuk mencegah macet jika higher_tf_trend adalah None.
+        higher_trend_name = signal.higher_tf_trend.name if signal.higher_tf_trend else "N/A"
+        message += f" {trend_icon} Tren (1h/4h): <b>{signal.trend_direction.name} / {higher_trend_name}</b>\n"
         message += f" 📊 SuperTrend: <code>${signal.supertrend_value:,.4f}</code>\n"
         if signal.indicator_values:
             rsi = signal.indicator_values.get('rsi')
@@ -140,7 +145,6 @@ class TelegramService(NotificationService):
         if signal.support_level:
             message += f" 📉 Support: <code>${signal.support_level:,.4f}</code>\n"
             
-        # --- Disclaimer ---
         message += "\n<i>*DYOR. Sinyal ini adalah hasil analisis otomatis yang divalidasi oleh AI.</i>"
 
         return message

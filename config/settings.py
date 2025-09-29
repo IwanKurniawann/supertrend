@@ -37,7 +37,7 @@ class Settings:
     ).split(",")
 
     PRIMARY_TIMEFRAME: str = os.getenv("PRIMARY_TIMEFRAME", "1m")
-    HIGHER_TIMEFRAME: str = os.getenv("HIGHER_TIMEFRAME", "4h")
+    HIGHER_TIMEFRAME: str = os.getenv("HIGHER_TIMEFRAME", "5m")
     PIVOT_PERIOD: int = int(os.getenv("PIVOT_PERIOD", "6"))
     ATR_FACTOR: float = float(os.getenv("ATR_FACTOR", "3.0"))
     ATR_PERIOD: int = int(os.getenv("ATR_PERIOD", "1"))

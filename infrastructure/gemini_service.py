@@ -20,7 +20,7 @@ class GeminiService(GenerativeAIService):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.settings = settings
         self._configure_api()
-        # SOLUSI: Memperbarui untuk mencoba model 'gemini-2.0-flash' sesuai permintaan.
+        # Menggunakan model 'gemini-2.0-flash' yang stabil dan cepat
         self.model = genai.GenerativeModel('gemini-2.0-flash')
 
     def _configure_api(self):
@@ -71,6 +71,8 @@ class GeminiService(GenerativeAIService):
         Insight: [Ringkasan singkat 1-2 kalimat dari analisis Anda]
         Conclusion: [BUY/SELL/NEUTRAL]
         Confidence: [Angka dari 1 sampai 10]
+
+        PENTING: Jawaban Anda HARUS hanya berisi tiga baris teks sesuai format di atas dan tidak ada yang lain. Jangan tambahkan paragraf pembuka atau penutup.
         """
         return prompt
 

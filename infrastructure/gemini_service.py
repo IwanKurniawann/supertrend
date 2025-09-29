@@ -20,7 +20,6 @@ class GeminiService(GenerativeAIService):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.settings = settings
         self._configure_api()
-        # FIX: Corrected the model name to 'gemini-1.5-flash'
         self.model = genai.GenerativeModel('gemini-1.5-flash')
 
     def _configure_api(self):
@@ -45,6 +44,10 @@ class GeminiService(GenerativeAIService):
     ) -> str:
         """Membangun prompt yang detail dan terstruktur untuk analisis AI."""
 
+        # FIX: Handle potential None values for S/R levels to prevent format errors
+        support_level_str = f"${indicator_data.support_level:,.4f}" if indicator_data.support_level is not None else "N/A"
+        resistance_level_str = f"${indicator_data.resistance_level:,.4f}" if indicator_data.resistance_level is not None else "N/A"
+
         prompt = f"""
         Anda adalah seorang analis trading profesional dengan spesialisasi pada analisis konfluens multi-indikator dan multi-timeframe. Lakukan analisis objektif untuk pasangan {symbol} berdasarkan data berikut:
 
@@ -55,8 +58,8 @@ class GeminiService(GenerativeAIService):
         - RSI (14) pada 1 Jam: {indicator_data.rsi:.2f}
         - MACD Line (1 Jam): {indicator_data.macd_line:,.5f}
         - MACD Signal (1 Jam): {indicator_data.macd_signal:,.5f}
-        - Level Support Kunci (dari Swing Low): ${indicator_data.support_level:,.4f}
-        - Level Resistance Kunci (dari Swing High): ${indicator_data.resistance_level:,.4f}
+        - Level Support Kunci (dari Swing Low): {support_level_str}
+        - Level Resistance Kunci (dari Swing High): {resistance_level_str}
 
         **TUGAS ANDA:**
         1.  **Analisis Konfluens Bullish:** Sebutkan semua faktor dari data di atas yang mendukung potensi pergerakan harga NAIK (BUY).

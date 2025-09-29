@@ -42,7 +42,7 @@ jobs:
         HTTP_PROXY: ${{ secrets.HTTP_PROXY }}
         HTTPS_PROXY: ${{ secrets.HTTPS_PROXY }}
         # Mengatur PIVOT_PERIOD yang lebih besar untuk swing yang lebih signifikan
-        PIVOT_PERIOD: "5"
+        PIVOT_PERIOD: "6"
         GEMINI_ANALYSIS_ENABLED: "True"
         AI_CONFIDENCE_THRESHOLD: "6"
       run: |

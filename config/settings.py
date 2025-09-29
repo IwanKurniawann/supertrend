@@ -36,12 +36,12 @@ class Settings:
         "APE/USDT,ETC/USDT,XLM/USDT,ALGO/USDT,KAITO/USDT"
     ).split(",")
 
-    PRIMARY_TIMEFRAME: str = os.getenv("PRIMARY_TIMEFRAME", "1m")
-    HIGHER_TIMEFRAME: str = os.getenv("HIGHER_TIMEFRAME", "5m")
+    PRIMARY_TIMEFRAME: str = os.getenv("PRIMARY_TIMEFRAME", "1h")
+    HIGHER_TIMEFRAME: str = os.getenv("HIGHER_TIMEFRAME", "4h")
     PIVOT_PERIOD: int = int(os.getenv("PIVOT_PERIOD", "6"))
     ATR_FACTOR: float = float(os.getenv("ATR_FACTOR", "3.0"))
     ATR_PERIOD: int = int(os.getenv("ATR_PERIOD", "1"))
-    OHLCV_LIMIT: int = int(os.getenv("OHLCV_LIMIT", "200"))
+    OHLCV_LIMIT: int = int(os.getenv("OHLCV_LIMIT", "201"))
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     AI_CONFIDENCE_THRESHOLD: int = int(os.getenv("AI_CONFIDENCE_THRESHOLD", "6"))
 

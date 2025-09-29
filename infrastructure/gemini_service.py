@@ -20,7 +20,8 @@ class GeminiService(GenerativeAIService):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.settings = settings
         self._configure_api()
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        # FIX: Changed model to 'gemini-pro' for better compatibility
+        self.model = genai.GenerativeModel('gemini-pro')
 
     def _configure_api(self):
         """Mengonfigurasi API key Gemini dari settings."""
